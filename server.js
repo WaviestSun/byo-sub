@@ -4,6 +4,7 @@
 // It also refuses requests that don't come from its own page, so other websites
 // open in your browser can't use your ChatGPT plan through it.
 
+import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
@@ -177,5 +178,18 @@ server.on('error', (err) => {
 server.on('listening', () => {
   port = server.address().port;
   console.log(`\n  ${APP_NAME} is running at http://127.0.0.1:${port}\n`);
+  openBrowser(`http://127.0.0.1:${port}`);
 });
+
+// Opens the app in your default browser. Set BYO_SUB_NO_OPEN=1 to skip it.
+function openBrowser(url) {
+  if (process.env.BYO_SUB_NO_OPEN) return;
+  const [command, args] =
+    process.platform === 'darwin' ? ['open', [url]] :
+    process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] :
+    ['xdg-open', [url]];
+  spawn(command, args, { stdio: 'ignore', detached: true })
+    .on('error', () => console.log('  Open that link in your browser to get started.\n'))
+    .unref();
+}
 server.listen(PREFERRED_PORT, '127.0.0.1');
