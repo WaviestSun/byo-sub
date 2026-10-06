@@ -20,12 +20,11 @@
 [data-vibe="painted"] body { font-size: 19px; }
 /* The landscape fills the whole window. Text that sits straight on it gets a soft paper halo,
    and the sidebar is frosted paper you can see the painting through. */
-[data-vibe="painted"] :is(.greeting, .caption, .vibe-name, .top .logo) { text-shadow: 0 0 6px var(--veil), 0 0 18px var(--veil), 0 0 32px var(--veil); }
+[data-vibe="painted"] :is(.greeting, .caption, .top .logo) { text-shadow: 0 0 6px var(--veil), 0 0 18px var(--veil), 0 0 32px var(--veil); }
 [data-vibe="painted"] .sidebar { background: var(--surface); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 @media (max-width: 900px) { [data-vibe="painted"] .sidebar { background: var(--bg); } }
 [data-vibe="painted"] .logo { font-size: 26px; font-weight: 700; }
 [data-vibe="painted"] .greeting { font-weight: 700; font-size: clamp(36px, 7vw, 52px); }
-[data-vibe="painted"] .vibe-name { font-weight: 700; }
 
 [data-vibe="painted"] .messages { gap: 34px; }
 [data-vibe="painted"] .msg { line-height: 1.3; }

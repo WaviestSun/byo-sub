@@ -62,13 +62,6 @@ function setVibe(vibe) {
   updateDots();
   if (painted()) paintScene($('scene'), theme());
 
-  // Flash the vibe's name in its own font.
-  const label = $('vibe-name');
-  label.textContent = vibe.name;
-  label.classList.remove('show');
-  void label.offsetWidth; // restart the animation
-  label.classList.add('show');
-
   // The same conversation re-enters in the new style, one message after another.
   [...$('messages').children].forEach((li, i) => {
     li.classList.remove('enter');

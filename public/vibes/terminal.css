@@ -35,6 +35,5 @@
 [data-vibe="terminal"] :is(.plan-chip, .model-button, .caption, .menu a, .menu button, .menu-label, .avatar) { font-size: 19px; }
 [data-vibe="terminal"] .composer textarea { font-size: 22px; }
 [data-vibe="terminal"] .logo { font-size: 26px; font-weight: 400; }
-[data-vibe="terminal"] .vibe-name { color: var(--accent-ink); font-weight: 400; }
 
 @keyframes terminal-flicker { 0% { opacity: 0; } 34% { opacity: .7; } 67% { opacity: .35; } 100% { opacity: 1; } }

@@ -283,9 +283,6 @@ canvas.paint { display: none; position: absolute; z-index: -1; pointer-events: n
 .vibe-dots { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 6px; }
 .vibe-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background-color .3s, transform .3s; }
 .vibe-dots i.on { background: var(--accent-ink); transform: scale(1.3); }
-.vibe-name { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; pointer-events: none; font-family: var(--font-display); font-size: clamp(48px, 12vw, 96px); font-weight: 800; color: var(--text); opacity: 0; }
-.vibe-name.show { animation: vibe-name 1.3s ease-out both; }
-@keyframes vibe-name { 0% { opacity: 0; transform: scale(.85); } 20% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1.04); } }
 .scene { display: none; position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 .svg-defs { position: absolute; width: 0; height: 0; }
 
