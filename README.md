@@ -23,6 +23,24 @@ npm start
 
 Open the address it prints, usually **http://127.0.0.1:1455**. Click **Continue with ChatGPT**, approve on chatgpt.com, tap the coin, and start chatting.
 
+### Not a coder? Let Claude set it up
+
+Open [Claude Code](https://claude.com/claude-code) (in your terminal or the Claude desktop app), paste this in, and follow along:
+
+```text
+Please set up and start the "byo sub" app for me. I'm not a developer, so explain anything I need to do in simple steps.
+
+1. Check that Node.js 20 or newer is installed. If it isn't, tell me exactly how to install it (the installer from nodejs.org is fine) and wait for me.
+2. Download the app from https://github.com/WaviestSun/ChatGPT-wallet into a folder called byo-sub in my home folder.
+3. Before running anything, read the code and tell me in two or three plain sentences whether it sends my ChatGPT sign-in anywhere other than OpenAI.
+4. Run npm install, then npm start, and leave it running.
+5. Give me the link it prints (it starts with http://127.0.0.1) and tell me to open it in Chrome or Safari.
+
+Don't change any of the app's files, and don't open anything in ~/.config/byo-sub (that's where my sign-in is saved).
+```
+
+When it gives you the link, open it in your normal browser and click **Continue with ChatGPT**. To stop the app later, ask Claude to stop it, or close the terminal.
+
 ## How it works
 
 Five files do the real work:
