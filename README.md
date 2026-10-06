@@ -4,8 +4,7 @@
 
 byo sub ("bring your own subscription") is a small open-source starter app. It runs on your computer, you sign in with ChatGPT, and you chat with an AI agent using the ChatGPT Plus or Pro plan you already pay for. Clone it, read it in one sitting, and turn it into your own thing.
 
-<!-- Demo GIF goes here: ![byo sub demo](docs/demo.gif) -->
-> _Demo GIF coming soon._
+![byo sub: sign in with ChatGPT, the plan coin drops into the wallet, and you're chatting](docs/demo.gif)
 
 ## What you need
 

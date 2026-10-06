@@ -190,7 +190,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .rear b { width: 28px; height: 28px; border-radius: 8px; background: #6B4A0E; }
 .pocket { left: 0; right: 0; bottom: 0; height: 115px; padding: 11px; border-radius: 12px 12px 26px 26px; background: var(--pocket); z-index: 5; transition: background-color .4s; }
 .stitch { position: relative; height: 100%; border: 1.5px dashed var(--stitch); border-radius: 16px; overflow: hidden; }
-.stitch span { position: absolute; left: 0; right: 0; bottom: 12px; }
+.stitch span { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; }
 .pocket-empty { font: 12px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .1em; color: var(--pocket-text); }
 .pocket-full { font-size: 16px; font-weight: 700; color: var(--accent); opacity: 0; }
 .sparks { left: 150px; top: 105px; z-index: 6; }
