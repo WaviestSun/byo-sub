@@ -19,10 +19,26 @@
     </section>
 
     <section id="signed-in" hidden>
-      <p>Connected as <strong id="email"></strong></p>
-      <p>Plan usage: <strong id="plan"></strong></p>
-      <button type="button" class="siwc" id="allow" data-href="/auth/start?consent" hidden><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
-      <button type="button" id="signout">Sign out</button>
+      <p>Connected as <strong id="email"></strong> <button type="button" id="signout">Sign out</button></p>
+
+      <div id="no-plan" hidden>
+        <p>Plan usage is off. byo sub needs permission to use your ChatGPT plan before it can chat.</p>
+        <button type="button" class="siwc" data-href="/auth/start?consent"><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
+      </div>
+
+      <div id="chat" hidden>
+        <div class="bar">
+          <label for="model">Model</label>
+          <select id="model"></select>
+          <span class="plan">Using ChatGPT plan · <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">Manage usage</a></span>
+        </div>
+        <ol id="messages"></ol>
+        <form id="composer">
+          <label for="input" class="visually-hidden">Message</label>
+          <textarea id="input" rows="2" placeholder="Ask anything…"></textarea>
+          <button type="submit" id="send">Send</button>
+        </form>
+      </div>
     </section>
   </main>
   <script src="/app.js" type="module"></script>

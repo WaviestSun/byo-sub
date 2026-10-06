@@ -7,7 +7,8 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { APP_NAME, startSignIn, finishSignIn, signOut } from './src/auth.js';
-import { loadAccount, hasPlanUsage } from './src/tokens.js';
+import { loadAccount, hasPlanUsage, SignedOutError } from './src/tokens.js';
+import { listModels, streamReply } from './src/chat.js';
 
 const PREFERRED_PORT = 1455;
 let port = PREFERRED_PORT;
@@ -79,7 +80,47 @@ async function handle(req, res) {
 
   if (route === 'POST /api/signout') return send(res, 200, await signOut());
 
+  if (route === 'GET /api/models') {
+    try {
+      return send(res, 200, { models: await listModels() });
+    } catch (err) {
+      const code = err instanceof SignedOutError ? 'signed_out' : err.code ?? 'error';
+      return send(res, code === 'signed_out' ? 401 : 502, { error: code });
+    }
+  }
+
+  if (route === 'POST /api/chat') {
+    const body = await readJsonBody(req);
+    const ok = body && typeof body.model === 'string' && body.model.length < 200 &&
+      Array.isArray(body.messages) && body.messages.length > 0 && body.messages.length <= 200 &&
+      body.messages.every((m) => ['user', 'assistant'].includes(m?.role) && typeof m.content === 'string');
+    if (!ok) return send(res, 400, { error: 'bad_request' });
+
+    // Stream newline-separated JSON events to the page as they arrive.
+    res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' });
+    const stop = new AbortController();
+    res.on('close', () => stop.abort()); // the page went away: stop asking OpenAI
+    await streamReply(body, (event) => res.write(JSON.stringify(event) + '\n'), stop.signal);
+    return res.end();
+  }
+
   send(res, 404, { error: 'not_found' });
+}
+
+// Reads a JSON request body (up to 1 MB). Returns null if it's too big or not JSON.
+async function readJsonBody(req) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 1_000_000) return null;
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return null;
+  }
 }
 
 const server = createServer((req, res) => {

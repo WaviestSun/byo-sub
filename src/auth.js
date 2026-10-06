@@ -11,16 +11,13 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { getHostId, loadAccount, saveAccount, clearTokens } from './tokens.js';
+import { getHostId, loadAccount, saveAccount, clearTokens, ISSUER, TOKEN_URL, RESOURCE } from './tokens.js';
 
 export const APP_NAME = 'byo sub'; // shown to you on OpenAI's approval screen
 
-const ISSUER = 'https://auth.openai.com';
 const AUTHORIZE_URL = `${ISSUER}/api/accounts/authorize`;
-const TOKEN_URL = `${ISSUER}/api/accounts/oauth/token`;
 const REVOKE_URL = `${ISSUER}/api/accounts/oauth/revoke`;
 const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`)); // OpenAI's public signing keys
-const RESOURCE = 'https://api.openai.com/v1';
 // Who you are (openid profile email), a refresh token (offline_access),
 // and permission to use your ChatGPT plan for API requests (the last two).
 const SCOPES = 'openid profile email offline_access resource.invoke chatgpt.tokens.use.direct';
