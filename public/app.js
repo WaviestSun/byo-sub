@@ -46,7 +46,7 @@ function setTheme(theme) {
   $('theme').setAttribute('aria-label', theme === 'night' ? 'Switch to day mode' : 'Switch to night mode');
   remember('theme', theme);
 }
-setTheme(recall('theme') === 'day' ? 'day' : 'night');
+setTheme(recall('theme') === 'night' ? 'night' : 'day'); // day unless you picked night
 $('theme').addEventListener('click', () => setTheme(root.dataset.theme === 'night' ? 'day' : 'night'));
 
 // Browsers only allow sound after a tap, so the first tap anywhere switches it on.
