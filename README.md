@@ -15,7 +15,7 @@ byo sub ("bring your own subscription") is a small open-source starter app. It r
 ## Quickstart
 
 ```bash
-git clone <this repo>
+git clone https://github.com/WaviestSun/byo-sub.git
 cd byo-sub
 npm install
 npm start
@@ -31,7 +31,7 @@ Open [Claude Code](https://claude.com/claude-code) (in your terminal or the Clau
 Please set up and start the "byo sub" app for me. I'm not a developer, so explain anything I need to do in simple steps.
 
 1. Check that Node.js 20 or newer is installed. If it isn't, tell me exactly how to install it (the installer from nodejs.org is fine) and wait for me.
-2. Download the app from https://github.com/WaviestSun/ChatGPT-wallet into a folder called byo-sub in my home folder.
+2. Download the app from https://github.com/WaviestSun/byo-sub into a folder called byo-sub in my home folder.
 3. Before running anything, read the code and tell me in two or three plain sentences whether it sends my ChatGPT sign-in anywhere other than OpenAI.
 4. Run npm install, then npm start, and leave it running. It should open in my browser by itself.
 5. If it doesn't, give me the link it prints (it starts with http://127.0.0.1) and tell me to open it in Chrome or Safari.
