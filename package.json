@@ -1,0 +1,17 @@
+{
+  "name": "byo-sub",
+  "version": "0.1.0",
+  "description": "Chat with an AI agent on the ChatGPT plan you already pay for. Runs on your own computer.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
+  }
+}

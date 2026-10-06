@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- index.html: the one page of byo sub. app.js fills it in. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>byo sub</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main>
+    <h1>byo sub</h1>
+
+    <p id="message" hidden></p>
+
+    <section id="signed-out" hidden>
+      <p>Chat on the ChatGPT plan you already pay for. No API key, no AI bill.</p>
+      <button type="button" class="siwc" data-href="/auth/start"><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
+    </section>
+
+    <section id="signed-in" hidden>
+      <p>Connected as <strong id="email"></strong></p>
+      <p>Plan usage: <strong id="plan"></strong></p>
+      <button type="button" class="siwc" id="allow" data-href="/auth/start?consent" hidden><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
+      <button type="button" id="signout">Sign out</button>
+    </section>
+  </main>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
