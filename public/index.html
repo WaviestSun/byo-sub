@@ -1,6 +1,6 @@
 <!doctype html>
-<!-- index.html: the one page of byo sub. app.js fills it in. -->
-<html lang="en">
+<!-- index.html: the one page of byo sub. app.js decides which screen to show. -->
+<html lang="en" data-theme="night">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,39 +8,120 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!-- The boot sequence. effects.js types into it, then removes it. -->
+  <div id="boot" class="boot" hidden>
+    <div class="boot-log"></div>
+    <div class="boot-title">bring your<br>own <em>sub</em><span class="caret"></span></div>
+    <p class="boot-skip">click to skip</p>
+  </div>
+
+  <header class="top">
+    <div class="logo"><span class="logo-mark"><i></i><b></b></span>byo sub</div>
+    <div class="top-right">
+      <button type="button" id="theme" class="icon-btn" aria-label="Switch to day mode">
+        <svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <span class="host"><i></i>127.0.0.1</span>
+      <div id="account" class="account" hidden>
+        <span id="email"></span>
+        <button type="button" id="signout">Sign out</button>
+      </div>
+    </div>
+  </header>
+
   <main>
-    <h1>byo sub</h1>
-
-    <p id="message" hidden></p>
-
-    <section id="signed-out" hidden>
-      <p>Chat on the ChatGPT plan you already pay for. No API key, no AI bill.</p>
-      <button type="button" class="siwc" data-href="/auth/start"><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
-    </section>
-
-    <section id="signed-in" hidden>
-      <p>Connected as <strong id="email"></strong> <button type="button" id="signout">Sign out</button></p>
-
-      <div id="no-plan" hidden>
-        <p>Plan usage is off. byo sub needs permission to use your ChatGPT plan before it can chat.</p>
-        <button type="button" class="siwc" data-href="/auth/start?consent"><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
+    <!-- Screen 1: sign in. The wallet lives here, and the plan coin drops into it. -->
+    <section id="start" class="screen start" hidden>
+      <div class="cell">
+        <div class="pitch">
+          <h1>Bring your own subscription.</h1>
+          <p>Chat on the ChatGPT plan you already pay for. No API key, no AI bill.</p>
+        </div>
+        <div class="pitch done-title">
+          <h1>You're connected.</h1>
+          <p>Your ChatGPT plan is in your wallet.</p>
+        </div>
       </div>
 
-      <div id="chat" hidden>
-        <div class="bar">
-          <label for="model">Model</label>
-          <select id="model"></select>
-          <span class="plan">Using ChatGPT plan · <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">Manage usage</a></span>
+      <div class="wallet" id="wallet">
+        <div class="wallet-back"></div>
+        <div class="slot"></div>
+        <button type="button" class="coin" id="coin" aria-label="Drop your plan into the wallet" tabindex="-1">
+          <span class="coin-spin">
+            <i class="edge"></i><i class="edge"></i><i class="edge"></i><i class="edge"></i><i class="edge"></i>
+            <span class="face rear"><b></b></span>
+            <span class="face front">PLAN</span>
+          </span>
+        </button>
+        <div class="pocket"><div class="stitch">
+          <span class="pocket-empty">YOUR WALLET · EMPTY</span>
+          <span class="pocket-full">ChatGPT plan connected</span>
+        </div></div>
+        <div class="sparks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+
+      <div class="cell">
+        <div class="signin">
+          <div id="notice" class="notice" hidden>
+            <h2 id="notice-title"></h2>
+            <p id="notice-text"></p>
+          </div>
+          <div class="cta">
+            <span class="halo"></span>
+            <span class="ripple"></span>
+            <!-- OpenAI's approved button: white, ChatGPT logo, "Continue with ChatGPT". Animate around it, never the button itself. -->
+            <button type="button" class="siwc" id="continue"><img src="/chatgpt-mark.svg" alt="">Continue with ChatGPT</button>
+          </div>
+          <p class="fine">Works with ChatGPT Plus and Pro. Your sign-in token stays on this computer.</p>
         </div>
-        <ol id="messages"></ol>
-        <form id="composer">
+        <p class="tap-hint">Tap the coin to drop your plan in.</p>
+        <div class="plan-pill">
+          <img class="on-night" src="/chatgpt-mark-white.svg" alt=""><img class="on-day" src="/chatgpt-mark.svg" alt="">
+          <b>Using ChatGPT plan</b>
+          <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">Manage usage ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 2: chat -->
+    <section id="chat" class="screen chat" hidden>
+      <ol id="messages" class="messages" aria-live="polite"></ol>
+      <p id="empty" class="empty">Your plan is in your wallet. Ask anything.</p>
+      <div class="dock">
+        <div class="dock-row">
+          <label for="model" class="visually-hidden">Model</label>
+          <select id="model"></select>
+          <span class="plan-pill">
+            <img class="on-night" src="/chatgpt-mark-white.svg" alt=""><img class="on-day" src="/chatgpt-mark.svg" alt="">
+            <b>Using ChatGPT plan</b>
+            <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">Manage usage ↗</a>
+          </span>
+        </div>
+        <form id="composer" class="composer">
           <label for="input" class="visually-hidden">Message</label>
-          <textarea id="input" rows="2" placeholder="Ask anything…"></textarea>
-          <button type="submit" id="send">Send</button>
+          <textarea id="input" rows="1" placeholder="Ask anything…"></textarea>
+          <button type="submit" id="send" aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15V3M4 8l5-5 5 5"/></svg>
+          </button>
         </form>
       </div>
     </section>
   </main>
+
+  <!-- Shown once, the first time your plan connects (OpenAI's UI guidelines ask for this). -->
+  <div id="welcome" class="sheet" hidden>
+    <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <img class="on-night" src="/chatgpt-mark-white.svg" alt="ChatGPT"><img class="on-day" src="/chatgpt-mark.svg" alt="ChatGPT">
+      <h2 id="welcome-title">You're using your ChatGPT plan</h2>
+      <p>Chats in byo sub now use the usage included in your ChatGPT plan. You can review usage and limits any time in ChatGPT settings.</p>
+      <div class="acts">
+        <button type="button" id="got-it" class="primary">Got it</button>
+        <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">Manage usage ↗</a>
+      </div>
+    </div>
+  </div>
+
   <script src="/app.js" type="module"></script>
 </body>
 </html>

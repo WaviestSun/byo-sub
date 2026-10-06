@@ -7,7 +7,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { APP_NAME, startSignIn, finishSignIn, signOut } from './src/auth.js';
-import { loadAccount, hasPlanUsage, SignedOutError } from './src/tokens.js';
+import { loadAccount, saveAccount, hasPlanUsage, SignedOutError } from './src/tokens.js';
 import { listModels, streamReply } from './src/chat.js';
 
 const PREFERRED_PORT = 1455;
@@ -17,7 +17,9 @@ const PUBLIC_FILES = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+  '/effects.js': ['effects.js', 'text/javascript; charset=utf-8'],
   '/chatgpt-mark.svg': ['chatgpt-mark.svg', 'image/svg+xml'],
+  '/chatgpt-mark-white.svg': ['chatgpt-mark-white.svg', 'image/svg+xml'],
 };
 
 const SECURITY_HEADERS = {
@@ -75,10 +77,18 @@ async function handle(req, res) {
       signedIn: Boolean(account?.access_token),
       email: account?.email ?? null,
       planUsage: hasPlanUsage(account),
+      welcomed: Boolean(account?.welcomed),
     });
   }
 
   if (route === 'POST /api/signout') return send(res, 200, await signOut());
+
+  // The "You're using your ChatGPT plan" card only shows once, so remember it was seen.
+  if (route === 'POST /api/welcomed') {
+    const account = await loadAccount();
+    if (account) await saveAccount({ ...account, welcomed: true });
+    return send(res, 200, { ok: true });
+  }
 
   if (route === 'GET /api/models') {
     try {

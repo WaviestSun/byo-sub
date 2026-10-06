@@ -1,88 +1,243 @@
-// app.js: the page's brain. Shows the right screen, sends your messages,
-// and prints the reply as it streams in.
+// app.js: the page's brain. Picks the screen, plays the "plan drops into your
+// wallet" moment, sends your messages and types out the replies.
 // The browser never sees a token: it only talks to the local server.
 
+import { runBoot, primeAudio, clink, trail, wait, calm } from './effects.js';
+
 const $ = (id) => document.getElementById(id);
+const root = document.documentElement;
+const start = $('start');
 const USAGE_URL = 'https://chatgpt.com/settings/usage';
 const DOCS_URL = 'https://developers.openai.com/siwc/token-sharing-open-source';
 
-const SIGN_IN_MESSAGES = {
-  declined: "You signed in but didn't let byo sub use your ChatGPT plan. Chat needs that permission. Press Continue with ChatGPT to allow it.",
-  expired: 'That sign-in timed out or was already used. Please try again.',
-  mismatch: "That's a different ChatGPT account from the one saved here. Sign out first to switch accounts.",
-  oauth: "Sign-in didn't finish. Please try again.",
-  signed_out: 'Your ChatGPT connection ended. Sign in again to keep chatting.',
+// Little helpers for remembering your theme and model (only in this browser).
+const remember = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
+const recall = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+
+// Messages for the sign-in screen: [title, text].
+const NOTICES = {
+  declined: ['Plan usage is off', "You signed in but didn't let byo sub use your ChatGPT plan. Chat needs that permission, and you can turn it on now."],
+  plan_off: ['Plan usage is off', "byo sub doesn't have permission to use your ChatGPT plan yet. Continue with ChatGPT to allow it."],
+  expired: ['Sign-in timed out', 'That sign-in link expired or was already used. Please try again.'],
+  mismatch: ['Different account', "That's a different ChatGPT account from the one saved here. Sign out first to switch."],
+  oauth: ["Sign-in didn't finish", 'Something went wrong on the way back from ChatGPT. Please try again.'],
+  signed_out: ['Signed out', 'Your ChatGPT connection ended. Sign in again to keep chatting.'],
+  bye: ['Signed out', 'Your tokens were deleted from this computer.'],
+  bye_unconfirmed: ['Signed out here', "Your tokens were deleted, but OpenAI didn't confirm the session ended. You can disconnect byo sub in ChatGPT settings."],
 };
 
-// What to say when a reply fails. Some include a link: [text, linkText, url].
+// Cards for when a reply fails. `brand` shows the ChatGPT name, as OpenAI asks for usage-limit messages.
 const CHAT_ERRORS = {
-  limit: ["You've reached a usage limit on your ChatGPT plan or on byo sub.", 'Manage usage', USAGE_URL],
-  not_eligible: ['Using your plan here needs ChatGPT Plus or Pro on this account.', 'How it works', DOCS_URL],
-  unavailable: ["ChatGPT couldn't check your usage just now. Try again in a minute."],
-  auth: ["ChatGPT didn't accept this sign-in. Try signing out and back in."],
-  incomplete: ['The reply stopped early.'],
-  interrupted: ['The connection dropped before the reply finished. Try again.'],
-  error: ['Something went wrong.'],
+  limit: { brand: true, title: 'Usage limit reached', text: "You've hit a limit on your ChatGPT plan or on byo sub. Review it in ChatGPT settings.", link: ['Manage usage ↗', USAGE_URL], primary: true },
+  not_eligible: { title: "Your plan can't be used here", text: 'Using your plan in byo sub needs ChatGPT Plus or Pro on this account.', link: ['How it works ↗', DOCS_URL] },
+  unavailable: { title: 'ChatGPT is busy', text: "Your usage couldn't be checked just now. Try again in a minute." },
+  auth: { title: 'Sign-in not accepted', text: "ChatGPT didn't accept this sign-in. Try signing out and back in." },
+  incomplete: { title: 'Reply cut short', text: 'The reply stopped before it finished.' },
+  interrupted: { title: 'Connection dropped', text: 'The reply stopped before it finished. Try again.' },
+  error: { title: 'Something went wrong', text: "That message didn't go through." },
 };
 
-const conversation = []; // the whole conversation, sent with every message
+const conversation = []; // the whole chat, sent with every message
 
-function showMessage(text) {
-  $('message').textContent = text ?? '';
-  $('message').hidden = !text;
+// ---------- Theme ----------
+
+function setTheme(theme) {
+  root.dataset.theme = theme;
+  $('theme').setAttribute('aria-label', theme === 'night' ? 'Switch to day mode' : 'Switch to night mode');
+  remember('theme', theme);
+}
+setTheme(recall('theme') === 'day' ? 'day' : 'night');
+$('theme').addEventListener('click', () => setTheme(root.dataset.theme === 'night' ? 'day' : 'night'));
+
+// Browsers only allow sound after a tap, so the first tap anywhere switches it on.
+document.addEventListener('pointerdown', primeAudio);
+
+// ---------- Screens ----------
+
+const getSession = () => fetch('/api/session').then((r) => r.json());
+
+function setHeader(session) {
+  $('account').hidden = !session.signedIn;
+  document.querySelector('.host').hidden = session.signedIn;
+  $('email').textContent = session.email ?? '';
+  root.toggleAttribute('data-plan', Boolean(session.planUsage));
 }
 
-async function render() {
-  const session = await fetch('/api/session').then((r) => r.json());
-  $('signed-out').hidden = session.signedIn;
-  $('signed-in').hidden = !session.signedIn;
-  $('email').textContent = session.email ?? 'unknown';
-  $('no-plan').hidden = session.planUsage;
-  $('chat').hidden = !session.planUsage;
-  if (session.planUsage) await loadModels();
+function showStart(session, notice) {
+  setHeader(session);
+  $('chat').hidden = true;
+  start.hidden = false;
+  start.className = 'screen start';
+  const [title, text] = NOTICES[notice] ?? [];
+  $('notice').hidden = !title;
+  $('notice-title').textContent = title ?? '';
+  $('notice-text').textContent = text ?? '';
+  // After a decline, ask OpenAI to show the plan permission screen again.
+  $('continue').dataset.href = notice === 'declined' || notice === 'plan_off' ? '/auth/start?consent' : '/auth/start';
 }
+
+async function showChat(session, { arrive = false } = {}) {
+  setHeader(session);
+  start.hidden = true;
+  $('chat').hidden = false;
+  document.querySelector('.chat .plan-pill').classList.toggle('arrive', arrive);
+  $('input').focus();
+  await loadModels();
+}
+
+// "Continue with ChatGPT": the coin pops out of the button, then this tab goes to OpenAI.
+$('continue').addEventListener('click', async () => {
+  const href = $('continue').dataset.href;
+  if (!calm()) {
+    const button = $('continue').getBoundingClientRect();
+    const coin = $('coin').getBoundingClientRect();
+    start.style.setProperty('--from-y', `${button.top + button.height / 2 - (coin.top + coin.height / 2)}px`);
+    start.classList.add('popping');
+    await wait(620);
+  }
+  location.href = href;
+});
+
+// If you press Back on OpenAI's page, the browser may restore this page mid-animation.
+addEventListener('pageshow', (e) => { if (e.persisted) start.classList.remove('popping'); });
+
+// Back from OpenAI with plan permission: drop the coin into the wallet.
+async function playConnect(session) {
+  showStart(session);
+  if (calm()) {
+    start.classList.add('connected');
+  } else {
+    start.classList.add('returning', 'hovering');
+    // Tap the coin (which also allows the sound), or it drops by itself after 4 seconds.
+    await Promise.race([new Promise((r) => $('coin').addEventListener('click', r, { once: true })), wait(4000)]);
+    start.classList.replace('hovering', 'dropping');
+    await wait(400); // the coin reaches the bottom of the pocket
+    start.classList.add('snapped');
+    clink();
+    await wait(600);
+    start.classList.add('connected');
+  }
+  await wait(1000);
+  if (!session.welcomed) await showWelcome();
+  else await wait(600);
+  showChat(session, { arrive: true });
+}
+
+// The one-time "You're using your ChatGPT plan" card.
+function showWelcome() {
+  $('welcome').hidden = false;
+  $('got-it').focus();
+  return new Promise((resolve) => {
+    $('got-it').addEventListener('click', async () => {
+      fetch('/api/welcomed', { method: 'POST' });
+      $('welcome').classList.add('leaving');
+      await wait(250);
+      $('welcome').hidden = true;
+      $('welcome').classList.remove('leaving');
+      resolve();
+    }, { once: true });
+  });
+}
+
+async function signedOut() {
+  conversation.length = 0;
+  $('messages').replaceChildren();
+  $('empty').hidden = false;
+  showStart(await getSession(), 'signed_out');
+}
+
+$('signout').addEventListener('click', async () => {
+  const { revoked } = await fetch('/api/signout', { method: 'POST' }).then((r) => r.json());
+  conversation.length = 0;
+  $('messages').replaceChildren();
+  $('empty').hidden = false;
+  showStart(await getSession(), revoked ? 'bye' : 'bye_unconfirmed');
+});
+
+// ---------- Chat ----------
 
 async function loadModels() {
   const res = await fetch('/api/models');
   const body = await res.json();
   if (body.error === 'signed_out') return signedOut();
-  if (!res.ok) return showMessage("Couldn't load your models. Reload the page to try again.");
-  $('model').replaceChildren(...body.models.map((m) => new Option(m.name, m.slug)));
+  if (!res.ok) return;
+  const saved = recall('model');
+  $('model').replaceChildren(...body.models.map((m) => new Option(m.name, m.slug, false, m.slug === saved)));
 }
+$('model').addEventListener('change', () => remember('model', $('model').value));
 
-function signedOut() {
-  showMessage(SIGN_IN_MESSAGES.signed_out);
-  render();
-}
+const scrollDown = () => { $('messages').scrollTop = $('messages').scrollHeight; };
 
-function addBubble(role, text = '') {
-  const li = document.createElement('li');
-  li.className = role;
-  li.textContent = text;
+function addUserMessage(text) {
+  const li = Object.assign(document.createElement('li'), { className: 'msg user fresh', textContent: text });
   $('messages').append(li);
-  li.scrollIntoView({ block: 'end' });
-  return li;
+  trail(li);
+  scrollDown();
 }
 
-function showChatError(li, code, detail) {
-  const [text, linkText, url] = CHAT_ERRORS[code] ?? CHAT_ERRORS.error;
-  const note = document.createElement('p');
-  note.className = 'error';
-  note.textContent = text + (code === 'error' && detail ? ` (${detail})` : '') + ' ';
-  if (url) {
-    const a = Object.assign(document.createElement('a'), { href: url, target: '_blank', rel: 'noopener', textContent: linkText });
-    note.append(a);
+// The reply bubble. Words arrive in bursts, so this reveals them at a steady pace, like typing.
+function addReply() {
+  const li = document.createElement('li');
+  li.className = 'msg assistant streaming';
+  li.innerHTML = '<div class="who">agent · typing</div><div class="text"><span class="cursor"></span></div>';
+  $('messages').append(li);
+  scrollDown();
+
+  const typed = document.createTextNode('');
+  li.querySelector('.text').prepend(typed);
+  let target = '';
+  let frame = requestAnimationFrame(function tick() {
+    const behind = target.length - typed.data.length;
+    if (behind > 0) {
+      typed.data = target.slice(0, typed.data.length + Math.ceil(behind / 12));
+      scrollDown();
+    }
+    frame = requestAnimationFrame(tick);
+  });
+
+  return {
+    li,
+    add(text) {
+      target += text;
+      if (calm() || document.hidden) typed.data = target;
+    },
+    async finish() {
+      while (typed.data.length < target.length && !document.hidden) await wait(30);
+      typed.data = target;
+      cancelAnimationFrame(frame);
+      li.querySelector('.cursor').remove();
+      li.classList.remove('streaming');
+      li.querySelector('.who').textContent = 'agent';
+    },
+  };
+}
+
+function addErrorCard(li, code, detail) {
+  const info = CHAT_ERRORS[code] ?? CHAT_ERRORS.error;
+  const card = document.createElement('div');
+  card.className = 'chat-error';
+  if (info.brand) {
+    card.innerHTML = '<div class="brand"><img class="on-night" src="/chatgpt-mark-white.svg" alt=""><img class="on-day" src="/chatgpt-mark.svg" alt="">ChatGPT</div>';
   }
-  li.append(note);
+  card.append(Object.assign(document.createElement('h3'), { textContent: info.title }));
+  card.append(Object.assign(document.createElement('p'), { textContent: info.text + (code === 'error' && detail ? ` (${detail})` : '') }));
+  if (info.link) {
+    const [text, href] = info.link;
+    card.append(Object.assign(document.createElement('a'), { textContent: text, href, target: '_blank', rel: 'noopener', className: info.primary ? 'button-link' : '' }));
+  }
+  li.append(card);
+  scrollDown();
 }
 
 async function sendMessage(text) {
   conversation.push({ role: 'user', content: text });
-  addBubble('user', text);
-  const reply = addBubble('assistant');
+  $('empty').hidden = true;
+  addUserMessage(text);
+  const reply = addReply();
   $('send').disabled = true;
 
   let replyText = '';
+  let failed = null;
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
@@ -91,7 +246,7 @@ async function sendMessage(text) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    // Read newline-separated JSON events as they arrive.
+    // The server sends one JSON event per line as the reply streams in.
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = '';
     for (;;) {
@@ -104,60 +259,55 @@ async function sendMessage(text) {
         const event = JSON.parse(line);
         if (event.type === 'delta') {
           replyText += event.text;
-          reply.textContent = replyText;
-          reply.scrollIntoView({ block: 'end' });
+          reply.add(event.text);
         } else if (event.type === 'done') {
           conversation.push({ role: 'assistant', content: replyText });
         } else if (event.type === 'error') {
-          if (event.code === 'signed_out') return signedOut();
-          showChatError(reply, event.code, event.detail);
+          failed = event;
         }
       }
     }
   } catch (err) {
-    showChatError(reply, 'error', err.message);
-  } finally {
-    $('send').disabled = false;
+    failed = { code: 'error', detail: err.message };
   }
+
+  await reply.finish();
+  $('send').disabled = false;
+  if (failed?.code === 'signed_out') return signedOut();
+  if (failed) addErrorCard(reply.li, failed.code, failed.detail);
 }
-
-// Show what happened on the way back from OpenAI, then tidy the address bar.
-const params = new URLSearchParams(location.search);
-const error = params.get('error');
-if (error) {
-  showMessage(SIGN_IN_MESSAGES[error] ?? SIGN_IN_MESSAGES.oauth);
-  // After a decline, the retry button asks for the plan permission screen again.
-  if (error === 'declined') document.querySelector('#signed-out .siwc').dataset.href = '/auth/start?consent';
-}
-history.replaceState(null, '', '/');
-
-// "Continue with ChatGPT" just sends this tab to the server, which redirects to OpenAI.
-document.querySelectorAll('.siwc').forEach((b) => b.addEventListener('click', () => { location.href = b.dataset.href; }));
-
-$('signout').addEventListener('click', async () => {
-  const { revoked } = await fetch('/api/signout', { method: 'POST' }).then((r) => r.json());
-  conversation.length = 0;
-  $('messages').replaceChildren();
-  showMessage(revoked
-    ? 'Signed out. Your tokens were deleted from this computer.'
-    : "Signed out here, but OpenAI didn't confirm the session ended. You can disconnect byo sub in ChatGPT settings.");
-  render();
-});
 
 $('composer').addEventListener('submit', (e) => {
   e.preventDefault();
   const text = $('input').value.trim();
   if (!text || $('send').disabled) return;
   $('input').value = '';
+  $('input').style.height = '';
   sendMessage(text);
 });
 
-// Enter sends, Shift+Enter adds a new line.
+// Enter sends, Shift+Enter adds a new line. The box grows as you type.
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     $('composer').requestSubmit();
   }
 });
+$('input').addEventListener('input', () => {
+  $('input').style.height = 'auto';
+  $('input').style.height = `${$('input').scrollHeight}px`;
+});
 
-render();
+// ---------- Start ----------
+
+const params = new URLSearchParams(location.search);
+history.replaceState(null, '', '/');
+const backFromOpenAI = params.has('signin') || params.has('error');
+let booted = false;
+try { booted = sessionStorage.getItem('booted') === '1'; sessionStorage.setItem('booted', '1'); } catch {}
+
+const [session] = await Promise.all([getSession(), backFromOpenAI || booted ? $('boot').remove() : runBoot()]);
+
+if (session.planUsage && params.get('signin') === 'ok') playConnect(session);
+else if (session.planUsage) showChat(session);
+else showStart(session, params.get('error') ?? (session.signedIn ? 'plan_off' : null));
