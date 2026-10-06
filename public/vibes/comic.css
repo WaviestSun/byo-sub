@@ -40,6 +40,8 @@
 [data-vibe="comic"] #send { background: var(--accent); color: #FFFFFF; border: 2px solid #111; }
 [data-vibe="comic"] .vibe-arrow { opacity: 1; background: #FFE14D; color: #111; border: 3px solid #111; box-shadow: 4px 4px 0 #111; }
 [data-vibe="comic"] .chat-error { border: 3px solid #111; box-shadow: 4px 4px 0 #111; }
+[data-vibe="comic"] .sidebar { border-right: 3px solid #111; }
+[data-vibe="comic"] .new-chat { border: 3px solid #111; box-shadow: 4px 4px 0 #111; background: #FFFFFF; color: #111; }
 
 @keyframes comic-in-right { from { opacity: 0; transform: translateX(35%) rotate(10deg) scale(.3); } to { opacity: 1; transform: none; } }
 @keyframes comic-in-left { from { opacity: 0; transform: translateX(-35%) rotate(-10deg) scale(.3); } to { opacity: 1; transform: none; } }

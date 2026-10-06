@@ -29,6 +29,8 @@
 [data-vibe="terminal"] .composer, [data-vibe="terminal"] .plan-chip, [data-vibe="terminal"] #send,
 [data-vibe="terminal"] .vibe-arrow, [data-vibe="terminal"] .menu, [data-vibe="terminal"] .vibe-dots i { border-radius: 0; }
 [data-vibe="terminal"] .composer { box-shadow: none; }
+[data-vibe="terminal"] :is(.new-chat, .chat-item, .chat-delete, .account-button) { border-radius: 0; }
+[data-vibe="terminal"] :is(.new-chat, .chat-open, .account-email, .side-note, .side-label) { font-size: 19px; }
 [data-vibe="terminal"] #send { background: var(--accent); }
 [data-vibe="terminal"] :is(.plan-chip, .model-button, .caption, .menu a, .menu button, .menu-label, .avatar) { font-size: 19px; }
 [data-vibe="terminal"] .composer textarea { font-size: 22px; }

@@ -36,5 +36,7 @@
 [data-vibe="receipt"] .composer { border-radius: 8px; border-style: dashed; }
 [data-vibe="receipt"] #send, [data-vibe="receipt"] .vibe-arrow, [data-vibe="receipt"] .plan-chip { border-radius: 8px; }
 [data-vibe="receipt"] .vibe-name { font-weight: 600; letter-spacing: .1em; }
+[data-vibe="receipt"] .sidebar { border-right-style: dashed; }
+[data-vibe="receipt"] :is(.new-chat, .chat-item) { border-radius: 4px; }
 
 @keyframes receipt-print { from { clip-path: inset(0 0 100% 0); translate: 0 -12px; } to { clip-path: inset(0 0 0 0); translate: 0 0; } }

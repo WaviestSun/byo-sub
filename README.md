@@ -25,7 +25,7 @@ Open the address it prints, usually **http://127.0.0.1:1455**. Click **Continue 
 
 ## How it works
 
-Four files do the real work:
+Five files do the real work:
 
 | File | What it does |
 | --- | --- |
@@ -33,6 +33,7 @@ Four files do the real work:
 | `src/auth.js` | The "Continue with ChatGPT" flow: builds the sign-in link, checks what comes back, and verifies who you are. |
 | `src/tokens.js` | Saves your sign-in to a private file on your computer and quietly renews it every hour. |
 | `src/chat.js` | Sends your chat to OpenAI with your sign-in and streams the reply back, a few words at a time. |
+| `src/chats.js` | Saves each conversation as a file on your computer, so you can reopen it and the agent remembers it. |
 
 Everything you see lives in `public/`: the page, its styles, the coin animation (`effects.js`), the chat styles (`vibes/`) and the watercolour painter (`paint.js`).
 
@@ -44,7 +45,7 @@ Everything you see lives in `public/`: the page, its styles, the coin animation 
 4. You land back in the app, your plan drops into your wallet, and you're connected.
 5. You chat. Each message is sent from your computer to OpenAI using your plan.
 
-Your sign-in is saved in `~/.config/byo-sub/`, readable only by your user account. **Sign out** deletes it and tells OpenAI to end the session.
+Your sign-in and your chats are saved in `~/.config/byo-sub/`, readable only by your user account. **Sign out** deletes the sign-in and tells OpenAI to end the session. Your chats stay until you delete them from the sidebar (or delete the `chats` folder).
 
 ## The rules, in plain English
 
@@ -83,11 +84,11 @@ Ideas this starter leaves out on purpose:
 - **API key fallback** for people without Plus or Pro.
 - **Multiple accounts**, with an account picker.
 - **Tools**, so the agent can do things: web search, or local tools like reading notes.
-- **Saving chat history** between reloads.
+- **Memory across chats**, so the agent remembers things about you from one chat to the next.
 
 ## Safety note
 
-This app stores a sign-in token on your computer that can use your ChatGPT plan. That's how it works, and it's why the token never leaves your machine. Still, read the code before you run any repo like this one, including this one. If you ever think a token leaked, disconnect the app in [ChatGPT settings](https://chatgpt.com/settings/usage).
+This app stores a sign-in token on your computer that can use your ChatGPT plan, plus your chats. That's how it works, and it's why the token never leaves your machine. Still, read the code before you run any repo like this one, including this one. If you ever think a token leaked, disconnect the app in [ChatGPT settings](https://chatgpt.com/settings/usage).
 
 ## Docs
 

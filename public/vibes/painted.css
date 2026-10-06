@@ -8,18 +8,21 @@
   --bg: #FBF4E6; --surface: rgba(255, 250, 240, .86); --raised: rgba(235, 222, 200, .7); --line: #CDBFA8; --text: #2B2340; --muted: #6B5F7E;
   --accent: #8E6FC1; --accent-ink: #6A4FA0; --accent-soft: rgba(142, 111, 193, .16); --focus-line: #8E6FC1;
   --font: "Caveat", "Bradley Hand", cursive; --font-display: var(--font); --msg-size: 22px;
-  --veil: rgba(251, 244, 230, .5);
+  --veil: rgba(251, 244, 230, .95);
 }
 :root[data-vibe="painted"][data-theme="night"] {
   --bg: #1B1F33; --surface: rgba(27, 31, 51, .86); --raised: rgba(70, 74, 110, .6); --line: #4A4F70; --text: #FFF4E2; --muted: #C9BFD9;
   --accent: #E8A95B; --accent-ink: #F2C27E; --accent-soft: rgba(232, 169, 91, .18); --focus-line: #E8A95B;
-  --veil: rgba(27, 31, 51, .5);
+  --veil: rgba(27, 31, 51, .95);
 }
 
 [data-vibe="painted"] .scene { display: block; }
 [data-vibe="painted"] body { font-size: 19px; }
-/* a soft wash of paper behind the chat column so the words stay readable */
-[data-vibe="painted"] .chat::before { content: ""; position: absolute; inset: 0 -28px; z-index: -1; border-radius: 48px; background: linear-gradient(to bottom, transparent, var(--veil) 12% 88%, transparent); filter: blur(10px); }
+/* The landscape fills the whole window. Text that sits straight on it gets a soft paper halo,
+   and the sidebar is frosted paper you can see the painting through. */
+[data-vibe="painted"] :is(.greeting, .caption, .vibe-name, .top .logo) { text-shadow: 0 0 6px var(--veil), 0 0 18px var(--veil), 0 0 32px var(--veil); }
+[data-vibe="painted"] .sidebar { background: var(--surface); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+@media (max-width: 900px) { [data-vibe="painted"] .sidebar { background: var(--bg); } }
 [data-vibe="painted"] .logo { font-size: 26px; font-weight: 700; }
 [data-vibe="painted"] .greeting { font-weight: 700; font-size: clamp(36px, 7vw, 52px); }
 [data-vibe="painted"] .vibe-name { font-weight: 700; }

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { APP_NAME, startSignIn, finishSignIn, signOut } from './src/auth.js';
 import { loadAccount, saveAccount, hasPlanUsage, SignedOutError } from './src/tokens.js';
 import { listModels, streamReply } from './src/chat.js';
+import { listChats, getChat, saveChat, deleteChat } from './src/chats.js';
 
 const PREFERRED_PORT = 1455;
 let port = PREFERRED_PORT;
@@ -128,16 +129,29 @@ async function handle(req, res) {
     return res.end();
   }
 
+  // Saved chats: list them, open one, save one, delete one.
+  if (route === 'GET /api/chats') return send(res, 200, { chats: await listChats() });
+  const chatId = url.pathname.match(/^\/api\/chats\/([^/]+)$/)?.[1];
+  if (chatId && req.method === 'GET') {
+    const chat = await getChat(chatId);
+    return chat ? send(res, 200, chat) : send(res, 404, { error: 'not_found' });
+  }
+  if (chatId && req.method === 'PUT') {
+    const saved = await saveChat(chatId, (await readJsonBody(req, 5_000_000)) ?? {});
+    return send(res, saved ? 200 : 400, { ok: saved });
+  }
+  if (chatId && req.method === 'DELETE') return send(res, 200, { ok: await deleteChat(chatId) });
+
   send(res, 404, { error: 'not_found' });
 }
 
-// Reads a JSON request body (up to 1 MB). Returns null if it's too big or not JSON.
-async function readJsonBody(req) {
+// Reads a JSON request body (1 MB unless told otherwise). Returns null if it's too big or not JSON.
+async function readJsonBody(req, limit = 1_000_000) {
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 1_000_000) return null;
+    if (size > limit) return null;
     chunks.push(chunk);
   }
   try {

@@ -42,6 +42,8 @@ const conversation = []; // the whole chat, sent with every message
 let tokensThisChat = 0;  // added up from each reply's usage report
 let model = null;        // the model slug you picked
 let streaming = null;    // lets the stop button cancel the reply in progress
+let chatId = null;       // which saved chat is open (null until the first reply is saved)
+let chatVersion = 0;     // bumps whenever you switch chats, so a late reply can't land in the wrong one
 
 // ---------- Theme ----------
 
@@ -89,6 +91,7 @@ function setHeader(session) {
   $('account').hidden = !session.signedIn;
   document.querySelector('.host').hidden = session.signedIn;
   $('email').textContent = session.email ?? '';
+  $('account-email').textContent = session.email ?? '';
   $('avatar-letter').textContent = (session.email ?? '?')[0].toUpperCase();
   root.toggleAttribute('data-plan', Boolean(session.planUsage));
 }
@@ -99,6 +102,10 @@ function showStart(session, notice) {
   start.hidden = false;
   start.className = 'screen start';
   showVibes(false);
+  $('sidebar').hidden = true;
+  $('sidebar-open').hidden = true;
+  $('app').classList.remove('has-sidebar');
+  $('notice-signout').hidden = !session.signedIn;
   const [title, text] = NOTICES[notice] ?? [];
   $('notice').hidden = !title;
   $('notice-title').textContent = title ?? '';
@@ -112,6 +119,10 @@ async function showChat(session, { arrive = false } = {}) {
   start.hidden = true;
   $('chat').hidden = false;
   showVibes(true);
+  $('sidebar').hidden = false;
+  $('sidebar-open').hidden = false;
+  $('app').classList.add('has-sidebar');
+  loadChats();
   document.querySelector('.plan-chip').classList.toggle('arrive', arrive);
   $('input').focus();
   await loadModels();
@@ -121,9 +132,12 @@ async function showChat(session, { arrive = false } = {}) {
 $('continue').addEventListener('click', async () => {
   const href = $('continue').dataset.href;
   if (!calm()) {
+    // Launch the coin from the button. The wallet may be drawn bigger on desktop, so undo its scale.
     const button = $('continue').getBoundingClientRect();
     const coin = $('coin').getBoundingClientRect();
-    start.style.setProperty('--from-y', `${button.top + button.height / 2 - (coin.top + coin.height / 2)}px`);
+    const scale = $('wallet').getBoundingClientRect().width / $('wallet').offsetWidth;
+    start.style.setProperty('--from-x', `${(button.left + button.width / 2 - (coin.left + coin.width / 2)) / scale}px`);
+    start.style.setProperty('--from-y', `${(button.top + button.height / 2 - (coin.top + coin.height / 2)) / scale}px`);
     start.classList.add('popping');
     await wait(620);
   }
@@ -172,12 +186,20 @@ function showWelcome() {
 }
 
 function clearChat() {
+  chatVersion++;
   streaming?.abort();
   conversation.length = 0;
   tokensThisChat = 0;
+  chatId = null;
   $('messages').replaceChildren();
   $('chat').classList.add('empty');
-  $('usage').hidden = true;
+  showUsage();
+  markActiveChat();
+}
+
+function showUsage() {
+  $('usage').hidden = !tokensThisChat;
+  $('usage').textContent = `${tokensThisChat.toLocaleString()} tokens this chat ·`;
 }
 
 async function signedOut() {
@@ -185,12 +207,105 @@ async function signedOut() {
   showStart(await getSession(), 'signed_out');
 }
 
-$('signout').addEventListener('click', async () => {
+async function signOut() {
   closeMenus();
+  closeSidebar();
   const { revoked } = await fetch('/api/signout', { method: 'POST' }).then((r) => r.json());
   clearChat();
   showStart(await getSession(), revoked ? 'bye' : 'bye_unconfirmed');
+}
+$('signout').addEventListener('click', signOut);
+$('notice-signout').addEventListener('click', signOut);
+
+// ---------- Saved chats (the sidebar) ----------
+// Each chat is saved to a file on this computer after every reply. Opening one
+// loads its whole history back, so the agent remembers the conversation.
+
+async function loadChats() {
+  const { chats } = await fetch('/api/chats').then((r) => r.json());
+  $('chats-empty').hidden = chats.length > 0;
+  $('chat-list').replaceChildren(...chats.map(chatListItem));
+  markActiveChat();
+}
+
+const TRASH = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>';
+
+function chatListItem(chat) {
+  const li = document.createElement('li');
+  li.className = 'chat-item';
+  li.dataset.id = chat.id;
+  const open = Object.assign(document.createElement('button'), { type: 'button', className: 'chat-open', textContent: chat.title || 'Untitled chat' });
+  open.addEventListener('click', () => openChat(chat.id));
+  const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'chat-delete', innerHTML: TRASH });
+  remove.setAttribute('aria-label', `Delete chat: ${chat.title}`);
+  // Deleting can't be undone, so the first click asks and the second click deletes.
+  remove.addEventListener('click', async () => {
+    if (!li.classList.contains('confirm')) {
+      li.classList.add('confirm');
+      remove.textContent = 'Delete?';
+      setTimeout(() => { li.classList.remove('confirm'); remove.innerHTML = TRASH; }, 3000);
+      return;
+    }
+    await fetch(`/api/chats/${chat.id}`, { method: 'DELETE' });
+    if (chat.id === chatId) clearChat();
+    loadChats();
+  });
+  li.append(open, remove);
+  return li;
+}
+
+function markActiveChat() {
+  $('chat-list').querySelectorAll('.chat-item').forEach((li) => li.classList.toggle('active', li.dataset.id === chatId));
+}
+
+async function openChat(id) {
+  if (streaming) return;
+  const chat = await fetch(`/api/chats/${id}`).then((r) => (r.ok ? r.json() : null));
+  if (!chat) return loadChats();
+  clearChat();
+  chatId = chat.id;
+  conversation.push(...chat.messages);
+  tokensThisChat = chat.tokens ?? 0;
+  showUsage();
+  $('chat').classList.toggle('empty', !conversation.length);
+  chat.messages.forEach((m, i) => {
+    const li = messageElement(m.role);
+    li.querySelector('.text').textContent = m.content;
+    if (m.tokens) li.querySelector('.bubble').dataset.tokens = m.tokens;
+    li.style.setProperty('--d', `${Math.min(i, 8) * 60}ms`);
+    $('messages').append(li);
+    vibeIn(li);
+    if (m.role === 'assistant') watchBubble(li.querySelector('.bubble'));
+  });
+  markActiveChat();
+  closeSidebar();
+  scrollDown();
+}
+
+async function saveChat() {
+  if (!conversation.length) return;
+  chatId ??= crypto.randomUUID();
+  const title = conversation.find((m) => m.role === 'user')?.content.replace(/\s+/g, ' ').slice(0, 60) ?? 'New chat';
+  await fetch(`/api/chats/${chatId}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ title, messages: conversation, tokens: tokensThisChat }),
+  });
+  loadChats();
+}
+
+$('new-chat').addEventListener('click', () => {
+  if (streaming) streaming.abort();
+  clearChat();
+  closeSidebar();
+  $('input').focus();
 });
+
+// On narrow screens the sidebar is a drawer.
+const closeSidebar = () => document.body.classList.remove('sidebar-open');
+$('sidebar-open').addEventListener('click', () => document.body.classList.add('sidebar-open'));
+$('sidebar-close').addEventListener('click', closeSidebar);
+$('side-scrim').addEventListener('click', closeSidebar);
 
 // ---------- Chat ----------
 
@@ -331,6 +446,7 @@ function addErrorCard(li, code, detail) {
 }
 
 async function sendMessage(text) {
+  const version = chatVersion;
   conversation.push({ role: 'user', content: text });
   $('chat').classList.remove('empty');
   addUserMessage(text);
@@ -364,18 +480,20 @@ async function sendMessage(text) {
           replyText += event.text;
           reply.add(event.text);
         } else if (event.type === 'done') {
-          conversation.push({ role: 'assistant', content: replyText });
+          conversation.push({ role: 'assistant', content: replyText, tokens: event.usage?.total ?? 0 });
           tokensThisChat += event.usage?.total ?? 0;
           reply.bubble.dataset.tokens = event.usage?.total ?? 0; // the Receipt vibe prints this
-          $('usage').hidden = false;
-          $('usage').textContent = `${tokensThisChat.toLocaleString()} tokens this chat ·`;
+          showUsage();
+          saveChat(); // save as soon as the reply is complete
         } else if (event.type === 'error') {
           failed = event;
         }
       }
     }
   } catch (err) {
-    if (err.name === 'AbortError') {
+    if (version !== chatVersion) {
+      // You switched chats mid-reply: this reply belongs to a chat that's no longer open.
+    } else if (err.name === 'AbortError') {
       // You pressed stop: keep what arrived so far as part of the conversation.
       if (replyText) conversation.push({ role: 'assistant', content: replyText });
       else reply.li.remove();
@@ -387,6 +505,8 @@ async function sendMessage(text) {
   await reply.finish();
   streaming = null;
   setSendButton();
+  if (version !== chatVersion) return;
+  saveChat();
   if (failed?.code === 'signed_out') return signedOut();
   if (failed) addErrorCard(reply.li, failed.code, failed.detail);
 }

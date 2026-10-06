@@ -10,7 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 export const ISSUER = 'https://auth.openai.com';
 export const TOKEN_URL = `${ISSUER}/api/accounts/oauth/token`;
@@ -20,7 +20,7 @@ export const CONFIG_DIR = join(homedir(), '.config', 'byo-sub');
 const HOST_FILE = join(CONFIG_DIR, 'host.json');
 const ACCOUNT_FILE = join(CONFIG_DIR, 'account.json');
 
-async function readJson(file) {
+export async function readJson(file) {
   try {
     return JSON.parse(await readFile(file, 'utf8'));
   } catch (err) {
@@ -29,8 +29,8 @@ async function readJson(file) {
   }
 }
 
-async function writeJsonAtomic(file, data) {
-  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
+export async function writeJsonAtomic(file, data) {
+  await mkdir(dirname(file), { recursive: true, mode: 0o700 });
   const tmp = `${file}.${process.pid}.tmp`;
   await writeFile(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
   await chmod(tmp, 0o600); // in case a umask loosened it
