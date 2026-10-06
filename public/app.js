@@ -38,6 +38,9 @@ const CHAT_ERRORS = {
 };
 
 const conversation = []; // the whole chat, sent with every message
+let tokensThisChat = 0;  // added up from each reply's usage report
+let model = null;        // the model slug you picked
+let streaming = null;    // lets the stop button cancel the reply in progress
 
 // ---------- Theme ----------
 
@@ -52,6 +55,30 @@ $('theme').addEventListener('click', () => setTheme(root.dataset.theme === 'nigh
 // Browsers only allow sound after a tap, so the first tap anywhere switches it on.
 document.addEventListener('pointerdown', primeAudio);
 
+// ---------- Pop-up menus (account and model) ----------
+
+const closers = [];
+function closeMenus() { closers.forEach((close) => close()); }
+function popupMenu(button, panel) {
+  const close = () => { panel.hidden = true; button.setAttribute('aria-expanded', 'false'); };
+  closers.push(close);
+  button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const opening = panel.hidden;
+    closeMenus();
+    if (!opening) return;
+    panel.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    (panel.querySelector('[aria-selected="true"]') ?? panel.querySelector('a, button'))?.focus();
+  });
+  panel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { close(); button.focus(); }
+  });
+}
+document.addEventListener('click', (e) => { if (!e.target.closest('.menu')) closeMenus(); });
+popupMenu($('account-button'), $('account-menu'));
+popupMenu($('model-button'), $('model-menu'));
+
 // ---------- Screens ----------
 
 const getSession = () => fetch('/api/session').then((r) => r.json());
@@ -60,6 +87,7 @@ function setHeader(session) {
   $('account').hidden = !session.signedIn;
   document.querySelector('.host').hidden = session.signedIn;
   $('email').textContent = session.email ?? '';
+  $('avatar-letter').textContent = (session.email ?? '?')[0].toUpperCase();
   root.toggleAttribute('data-plan', Boolean(session.planUsage));
 }
 
@@ -80,7 +108,7 @@ async function showChat(session, { arrive = false } = {}) {
   setHeader(session);
   start.hidden = true;
   $('chat').hidden = false;
-  document.querySelector('.chat .plan-pill').classList.toggle('arrive', arrive);
+  document.querySelector('.plan-chip').classList.toggle('arrive', arrive);
   $('input').focus();
   await loadModels();
 }
@@ -139,18 +167,24 @@ function showWelcome() {
   });
 }
 
-async function signedOut() {
+function clearChat() {
+  streaming?.abort();
   conversation.length = 0;
+  tokensThisChat = 0;
   $('messages').replaceChildren();
-  $('empty').hidden = false;
+  $('chat').classList.add('empty');
+  $('usage').hidden = true;
+}
+
+async function signedOut() {
+  clearChat();
   showStart(await getSession(), 'signed_out');
 }
 
 $('signout').addEventListener('click', async () => {
+  closeMenus();
   const { revoked } = await fetch('/api/signout', { method: 'POST' }).then((r) => r.json());
-  conversation.length = 0;
-  $('messages').replaceChildren();
-  $('empty').hidden = false;
+  clearChat();
   showStart(await getSession(), revoked ? 'bye' : 'bye_unconfirmed');
 });
 
@@ -161,10 +195,29 @@ async function loadModels() {
   const body = await res.json();
   if (body.error === 'signed_out') return signedOut();
   if (!res.ok) return;
-  const saved = recall('model');
-  $('model').replaceChildren(...body.models.map((m) => new Option(m.name, m.slug, false, m.slug === saved)));
+  // Use the model you picked last time if it's still offered, otherwise the first one (OpenAI's default order).
+  const saved = body.models.find((m) => m.slug === recall('model')) ?? body.models[0];
+  $('model-menu').replaceChildren(...body.models.map((m) => {
+    const li = document.createElement('li');
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.setAttribute('role', 'option');
+    option.dataset.slug = m.slug;
+    option.innerHTML = '<span></span><svg class="check" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+    option.firstChild.textContent = m.name;
+    option.addEventListener('click', () => { pickModel(m); closeMenus(); $('input').focus(); });
+    li.append(option);
+    return li;
+  }));
+  if (saved) pickModel(saved);
 }
-$('model').addEventListener('change', () => remember('model', $('model').value));
+
+function pickModel(m) {
+  model = m.slug;
+  remember('model', m.slug);
+  $('model-name').textContent = m.name;
+  $('model-menu').querySelectorAll('[role="option"]').forEach((o) => o.setAttribute('aria-selected', String(o.dataset.slug === m.slug)));
+}
 
 const scrollDown = () => { $('messages').scrollTop = $('messages').scrollHeight; };
 
@@ -179,7 +232,7 @@ function addUserMessage(text) {
 function addReply() {
   const li = document.createElement('li');
   li.className = 'msg assistant streaming';
-  li.innerHTML = '<div class="who">agent · typing</div><div class="text"><span class="cursor"></span></div>';
+  li.innerHTML = '<div class="text"><span class="cursor"></span></div>';
   $('messages').append(li);
   scrollDown();
 
@@ -207,7 +260,6 @@ function addReply() {
       cancelAnimationFrame(frame);
       li.querySelector('.cursor').remove();
       li.classList.remove('streaming');
-      li.querySelector('.who').textContent = 'agent';
     },
   };
 }
@@ -231,10 +283,11 @@ function addErrorCard(li, code, detail) {
 
 async function sendMessage(text) {
   conversation.push({ role: 'user', content: text });
-  $('empty').hidden = true;
+  $('chat').classList.remove('empty');
   addUserMessage(text);
   const reply = addReply();
-  $('send').disabled = true;
+  streaming = new AbortController();
+  setSendButton();
 
   let replyText = '';
   let failed = null;
@@ -242,7 +295,8 @@ async function sendMessage(text) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: $('model').value, messages: conversation }),
+      body: JSON.stringify({ model, messages: conversation }),
+      signal: streaming.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -262,25 +316,43 @@ async function sendMessage(text) {
           reply.add(event.text);
         } else if (event.type === 'done') {
           conversation.push({ role: 'assistant', content: replyText });
+          tokensThisChat += event.usage?.total ?? 0;
+          $('usage').hidden = false;
+          $('usage').textContent = `${tokensThisChat.toLocaleString()} tokens this chat ·`;
         } else if (event.type === 'error') {
           failed = event;
         }
       }
     }
   } catch (err) {
-    failed = { code: 'error', detail: err.message };
+    if (err.name === 'AbortError') {
+      // You pressed stop: keep what arrived so far as part of the conversation.
+      if (replyText) conversation.push({ role: 'assistant', content: replyText });
+      else reply.li.remove();
+    } else {
+      failed = { code: 'error', detail: err.message };
+    }
   }
 
   await reply.finish();
-  $('send').disabled = false;
+  streaming = null;
+  setSendButton();
   if (failed?.code === 'signed_out') return signedOut();
   if (failed) addErrorCard(reply.li, failed.code, failed.detail);
 }
 
+// The round button sends, or stops the reply while one is streaming.
+function setSendButton() {
+  $('send').classList.toggle('stop', Boolean(streaming));
+  $('send').setAttribute('aria-label', streaming ? 'Stop' : 'Send');
+  $('send').disabled = !streaming && !$('input').value.trim();
+}
+
 $('composer').addEventListener('submit', (e) => {
   e.preventDefault();
+  if (streaming) return streaming.abort();
   const text = $('input').value.trim();
-  if (!text || $('send').disabled) return;
+  if (!text || !model) return;
   $('input').value = '';
   $('input').style.height = '';
   sendMessage(text);
@@ -290,10 +362,11 @@ $('composer').addEventListener('submit', (e) => {
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    $('composer').requestSubmit();
+    if (!streaming) $('composer').requestSubmit();
   }
 });
 $('input').addEventListener('input', () => {
+  setSendButton();
   $('input').style.height = 'auto';
   $('input').style.height = `${$('input').scrollHeight}px`;
 });

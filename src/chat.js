@@ -94,7 +94,11 @@ export async function streamReply({ model, messages }, send, signal) {
 
         if (event.type === 'response.output_text.delta') send({ type: 'delta', text: event.delta });
         // Only response.completed means success. A usage limit can still arrive mid-stream as response.failed.
-        else if (event.type === 'response.completed') return send({ type: 'done' });
+        else if (event.type === 'response.completed') {
+          // How many tokens this reply used, so the page can show a running total for the chat.
+          const { input_tokens = 0, output_tokens = 0, total_tokens = 0 } = event.response?.usage ?? {};
+          return send({ type: 'done', usage: { input: input_tokens, output: output_tokens, total: total_tokens } });
+        }
         else if (event.type === 'response.failed' || event.type === 'error') {
           const code = event.response?.error?.code ?? event.error?.code ?? event.code;
           console.error(`Stream failed: ${code ?? 'unknown'}`);
