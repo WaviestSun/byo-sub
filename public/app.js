@@ -3,6 +3,7 @@
 // The browser never sees a token: it only talks to the local server.
 
 import { runBoot, primeAudio, clink, trail, wait, calm } from './effects.js';
+import { setupVibes, showVibes, vibeIn, watchBubble, vibeThemeChanged, currentVibe } from './vibes.js';
 
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
@@ -48,6 +49,7 @@ function setTheme(theme) {
   root.dataset.theme = theme;
   $('theme').setAttribute('aria-label', theme === 'night' ? 'Switch to day mode' : 'Switch to night mode');
   remember('theme', theme);
+  vibeThemeChanged(); // the Painted vibe repaints its landscape for day or night
 }
 setTheme(recall('theme') === 'night' ? 'night' : 'day'); // day unless you picked night
 $('theme').addEventListener('click', () => setTheme(root.dataset.theme === 'night' ? 'day' : 'night'));
@@ -96,6 +98,7 @@ function showStart(session, notice) {
   $('chat').hidden = true;
   start.hidden = false;
   start.className = 'screen start';
+  showVibes(false);
   const [title, text] = NOTICES[notice] ?? [];
   $('notice').hidden = !title;
   $('notice-title').textContent = title ?? '';
@@ -108,6 +111,7 @@ async function showChat(session, { arrive = false } = {}) {
   setHeader(session);
   start.hidden = true;
   $('chat').hidden = false;
+  showVibes(true);
   document.querySelector('.plan-chip').classList.toggle('arrive', arrive);
   $('input').focus();
   await loadModels();
@@ -221,28 +225,70 @@ function pickModel(m) {
 
 const scrollDown = () => { $('messages').scrollTop = $('messages').scrollHeight; };
 
+function messageElement(role) {
+  const li = document.createElement('li');
+  li.className = `msg ${role}`;
+  li.innerHTML = '<div class="bubble"><div class="text"></div></div>';
+  return li;
+}
+
 function addUserMessage(text) {
-  const li = Object.assign(document.createElement('li'), { className: 'msg user fresh', textContent: text });
+  const li = messageElement('user');
+  li.querySelector('.text').textContent = text;
   $('messages').append(li);
-  trail(li);
+  vibeIn(li);
+  if (currentVibe().id === 'classic' && !calm()) trail(li.querySelector('.bubble'));
   scrollDown();
 }
 
-// The reply bubble. Words arrive in bursts, so this reveals them at a steady pace, like typing.
+// The reply bubble. Words arrive in bursts, so this reveals them at a steady pace:
+// letter by letter with a cursor, or word by word, depending on the vibe.
 function addReply() {
-  const li = document.createElement('li');
-  li.className = 'msg assistant streaming';
-  li.innerHTML = '<div class="text"><span class="cursor"></span></div>';
+  const li = messageElement('assistant');
+  li.classList.add('streaming', 'waiting'); // "waiting" shows a thinking hint until the first word
+  const bubble = li.querySelector('.bubble');
+  const text = li.querySelector('.text');
   $('messages').append(li);
+  vibeIn(li);
+  watchBubble(bubble);
   scrollDown();
 
+  const byWords = currentVibe().reveal === 'words';
   const typed = document.createTextNode('');
-  li.querySelector('.text').prepend(typed);
-  let target = '';
-  let frame = requestAnimationFrame(function tick() {
-    const behind = target.length - typed.data.length;
-    if (behind > 0) {
-      typed.data = target.slice(0, typed.data.length + Math.ceil(behind / 12));
+  const cursor = Object.assign(document.createElement('span'), { className: 'cursor' });
+  if (!byWords) text.append(typed, cursor);
+  let target = '', shown = 0, finished = false, lastWord = 0;
+
+  // Shows the next word (or run of spaces). Holds back a word that might still be arriving.
+  function nextWord() {
+    const space = /\s+/y, word = /\S+/y;
+    space.lastIndex = word.lastIndex = shown;
+    const s = space.exec(target);
+    if (s) { text.append(s[0]); shown += s[0].length; return true; }
+    const w = word.exec(target);
+    if (!w || (shown + w[0].length === target.length && !finished)) return false;
+    text.append(Object.assign(document.createElement('span'), { className: 'w', textContent: w[0] }));
+    shown += w[0].length;
+    return true;
+  }
+  function catchUp() {
+    if (byWords) {
+      while (nextWord());
+    } else {
+      typed.data = target;
+      shown = target.length;
+    }
+  }
+
+  let frame = requestAnimationFrame(function tick(now) {
+    if (shown < target.length) {
+      li.classList.remove('waiting');
+      if (!byWords) {
+        shown += Math.ceil((target.length - shown) / 12);
+        typed.data = target.slice(0, shown);
+      } else if (now - lastWord > 45 && nextWord()) {
+        lastWord = now;
+      }
       scrollDown();
     }
     frame = requestAnimationFrame(tick);
@@ -250,16 +296,19 @@ function addReply() {
 
   return {
     li,
-    add(text) {
-      target += text;
-      if (calm() || document.hidden) typed.data = target;
+    bubble,
+    add(chunk) {
+      target += chunk;
+      if (calm() || document.hidden) catchUp();
     },
     async finish() {
-      while (typed.data.length < target.length && !document.hidden) await wait(30);
-      typed.data = target;
+      finished = true;
+      while (shown < target.length && !document.hidden && !calm()) await wait(30);
+      catchUp();
       cancelAnimationFrame(frame);
-      li.querySelector('.cursor').remove();
-      li.classList.remove('streaming');
+      cursor.remove();
+      li.classList.remove('streaming', 'waiting');
+      scrollDown();
     },
   };
 }
@@ -317,6 +366,7 @@ async function sendMessage(text) {
         } else if (event.type === 'done') {
           conversation.push({ role: 'assistant', content: replyText });
           tokensThisChat += event.usage?.total ?? 0;
+          reply.bubble.dataset.tokens = event.usage?.total ?? 0; // the Receipt vibe prints this
           $('usage').hidden = false;
           $('usage').textContent = `${tokensThisChat.toLocaleString()} tokens this chat ·`;
         } else if (event.type === 'error') {
@@ -379,6 +429,7 @@ const backFromOpenAI = params.has('signin') || params.has('error');
 let booted = false;
 try { booted = sessionStorage.getItem('booted') === '1'; sessionStorage.setItem('booted', '1'); } catch {}
 
+setupVibes();
 const [session] = await Promise.all([getSession(), backFromOpenAI || booted ? $('boot').remove() : runBoot()]);
 
 if (session.planUsage && params.get('signin') === 'ok') playConnect(session);

@@ -1,0 +1,40 @@
+/* receipt.css: every message prints out of a till, torn edge and all.
+   Replies end with the tokens they used as a line item. */
+
+@font-face { font-family: "IBM Plex Mono"; src: url("/fonts/ibm-plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("/fonts/ibm-plex-mono-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
+:root[data-vibe="receipt"] {
+  --bg: #E7E2D6; --surface: #FFFDF7; --raised: #F1ECE0; --line: #CFC7B6; --text: #23201B; --muted: #6E6658;
+  --accent: #23201B; --accent-ink: #23201B; --accent-soft: rgba(35, 32, 27, .08); --focus-line: #8C8471;
+  --font: "IBM Plex Mono", ui-monospace, Menlo, monospace; --font-display: var(--font); --msg-size: 14px;
+}
+:root[data-vibe="receipt"][data-theme="night"] {
+  --bg: #1A1814; --surface: #24211C; --raised: #2E2A23; --line: #3A352C; --text: #F1EBDD; --muted: #A79E8C;
+  --accent: #F1EBDD; --accent-ink: #F1EBDD; --accent-soft: rgba(241, 235, 221, .1); --focus-line: #6E6658;
+}
+
+[data-vibe="receipt"] .messages { gap: 26px; }
+/* Paper is paper: the slips stay cream with dark ink in both themes. */
+[data-vibe="receipt"] .msg .bubble {
+  max-width: min(86%, 440px); padding: 16px 18px 26px; border-radius: 0; background: #FFFDF7; color: #23201B; line-height: 1.6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
+  /* the zigzag torn edge along the bottom */
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 12px 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 12px 100%;
+}
+[data-vibe="receipt"] .msg.user .bubble { max-width: min(72%, 360px); rotate: -1.2deg; }
+[data-vibe="receipt"] .msg.assistant .bubble { rotate: .7deg; }
+[data-vibe="receipt"] .bubble::before { display: block; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #8C8471; font-weight: 600; letter-spacing: .1em; text-align: center; white-space: pre; }
+[data-vibe="receipt"] .msg.user .bubble::before { content: "YOUR ORDER"; }
+[data-vibe="receipt"] .msg.assistant .bubble::before { content: "BYO SUB\A REPLY"; }
+[data-vibe="receipt"] .msg.assistant .bubble::after { content: "PRINTING..."; display: block; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #8C8471; white-space: pre; font-size: .92em; }
+[data-vibe="receipt"] .msg.assistant .bubble[data-tokens]::after { content: "TOKENS ......... " attr(data-tokens) "\A PAID BY ... CHATGPT PLAN\A\A    THANK YOU"; }
+[data-vibe="receipt"] .cursor { background: #23201B; }
+[data-vibe="receipt"] .msg.enter .bubble { animation: receipt-print .9s steps(9, end) var(--d, 0ms) both; }
+
+[data-vibe="receipt"] .composer { border-radius: 8px; border-style: dashed; }
+[data-vibe="receipt"] #send, [data-vibe="receipt"] .vibe-arrow, [data-vibe="receipt"] .plan-chip { border-radius: 8px; }
+[data-vibe="receipt"] .vibe-name { font-weight: 600; letter-spacing: .1em; }
+
+@keyframes receipt-print { from { clip-path: inset(0 0 100% 0); translate: 0 -12px; } to { clip-path: inset(0 0 0 0); translate: 0 0; } }

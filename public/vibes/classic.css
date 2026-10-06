@@ -1,0 +1,15 @@
+/* classic.css: the default chat look (its colours and layout live in styles.css).
+   Your message rises with a mint glow and a little particle trail; replies type out. */
+
+[data-vibe="classic"] .msg.user.enter .bubble {
+  animation: classic-land .6s cubic-bezier(.2, .8, .2, 1) var(--d, 0ms) both, classic-glow 1.2s ease-out var(--d, 0ms) both;
+}
+[data-vibe="classic"] .msg.assistant.enter { animation: classic-fade .4s ease-out var(--d, 0ms) both; }
+
+.particle { position: absolute; left: 4px; bottom: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; animation: classic-float .7s ease-out var(--delay) both; }
+.particle:nth-child(even) { background: var(--gold); width: 4px; height: 4px; }
+
+@keyframes classic-land { from { opacity: 0; transform: translateY(28px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes classic-glow { from { box-shadow: 0 0 0 1px var(--accent), 0 0 36px var(--glow); } to { box-shadow: 0 0 0 1px transparent, 0 0 0 transparent; } }
+@keyframes classic-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes classic-float { from { opacity: .9; transform: none; } to { opacity: 0; transform: translate(var(--x), var(--y)) scale(.3); } }

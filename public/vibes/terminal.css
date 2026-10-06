@@ -1,0 +1,38 @@
+/* terminal.css: a command line. Phosphor green at night, ink on paper by day.
+   You type at a prompt; replies print character by character. */
+
+@font-face { font-family: "VT323"; src: url("/fonts/vt323.woff2") format("woff2"); font-display: swap; }
+
+:root[data-vibe="terminal"] {
+  --bg: #F2F0E6; --surface: #E8E5D8; --raised: #E0DCCB; --line: #C9C5B2; --text: #1B3A1F; --muted: #5E7560;
+  --accent: #1F7A33; --accent-ink: #1F7A33; --accent-soft: rgba(31, 122, 51, .1); --focus-line: #1F7A33;
+  --font: "VT323", ui-monospace, Menlo, monospace; --font-display: var(--font); --msg-size: 22px;
+}
+:root[data-vibe="terminal"][data-theme="night"] {
+  --bg: #060906; --surface: #0D140E; --raised: #121C13; --line: #1E3321; --text: #A7FFB0; --muted: #5E9A66;
+  --accent: #6CFF84; --accent-ink: #6CFF84; --accent-soft: rgba(108, 255, 132, .1); --focus-line: #2F6B38;
+}
+[data-vibe="terminal"][data-theme="night"] .text { text-shadow: 0 0 6px rgba(108, 255, 132, .45); }
+
+/* faint scanlines over the whole screen */
+[data-vibe="terminal"] body::after { content: ""; position: fixed; inset: 0; z-index: 40; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .06) 2px 3px); }
+
+[data-vibe="terminal"] .messages { gap: 18px; }
+[data-vibe="terminal"] .msg { line-height: 1.25; }
+[data-vibe="terminal"] .msg.user { align-items: flex-start; }
+[data-vibe="terminal"] .msg.user .bubble { max-width: 100%; padding: 0; border-radius: 0; background: none; }
+[data-vibe="terminal"] .msg.user .bubble::before { content: "you@byo-sub:~$ "; color: var(--accent-ink); }
+[data-vibe="terminal"] .msg.user .text { display: inline; }
+[data-vibe="terminal"] .msg.assistant .bubble { padding-left: 14px; border-left: 2px solid var(--line); }
+[data-vibe="terminal"] .msg.enter { animation: terminal-flicker .3s steps(3) var(--d, 0ms) both; }
+
+[data-vibe="terminal"] .composer, [data-vibe="terminal"] .plan-chip, [data-vibe="terminal"] #send,
+[data-vibe="terminal"] .vibe-arrow, [data-vibe="terminal"] .menu, [data-vibe="terminal"] .vibe-dots i { border-radius: 0; }
+[data-vibe="terminal"] .composer { box-shadow: none; }
+[data-vibe="terminal"] #send { background: var(--accent); }
+[data-vibe="terminal"] :is(.plan-chip, .model-button, .caption, .menu a, .menu button, .menu-label, .avatar) { font-size: 19px; }
+[data-vibe="terminal"] .composer textarea { font-size: 22px; }
+[data-vibe="terminal"] .logo { font-size: 26px; font-weight: 400; }
+[data-vibe="terminal"] .vibe-name { color: var(--accent-ink); font-weight: 400; }
+
+@keyframes terminal-flicker { 0% { opacity: 0; } 34% { opacity: .7; } 67% { opacity: .35; } 100% { opacity: 1; } }

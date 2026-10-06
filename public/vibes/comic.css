@@ -1,0 +1,47 @@
+/* comic.css: speech bubbles slam in from the sides with a POP!, and the reply's
+   words bounce into place one at a time. */
+
+@font-face { font-family: "Bangers"; src: url("/fonts/bangers.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Comic Neue"; src: url("/fonts/comic-neue-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root[data-vibe="comic"] {
+  --bg: #FFE7A3; --surface: #FFFFFF; --raised: #FFF3C4; --line: #111111; --text: #111111; --muted: #5A4A1E;
+  --accent: #E63B2E; --accent-ink: #B3261B; --accent-soft: rgba(230, 59, 46, .12); --focus-line: #111111; --pop: 6px 6px 0 #111;
+  --font: "Comic Neue", "Comic Sans MS", ui-rounded, sans-serif; --font-display: "Bangers", Impact, sans-serif; --msg-size: 17px;
+  --dots: rgba(230, 120, 0, .35);
+}
+:root[data-vibe="comic"][data-theme="night"] {
+  --bg: #2A1846; --surface: #3A2560; --raised: #4A3075; --line: #000000; --text: #FFF4D6; --muted: #D8C8FF;
+  --accent: #FF4FA3; --accent-ink: #FF8CC6; --accent-soft: rgba(255, 79, 163, .16); --dots: rgba(255, 79, 163, .3);
+}
+[data-vibe="comic"] body { background-image: radial-gradient(var(--dots) 18%, transparent 20%); background-size: 13px 13px; }
+[data-vibe="comic"] .logo, [data-vibe="comic"] .greeting { font-weight: 400; letter-spacing: .04em; }
+[data-vibe="comic"] .logo { font-size: 26px; }
+[data-vibe="comic"] .greeting { font-size: clamp(34px, 7vw, 48px); }
+[data-vibe="comic"] .vibe-name { font-weight: 400; color: #FFE14D; -webkit-text-stroke: 3px #111; text-shadow: 6px 6px 0 #111; font-size: clamp(64px, 16vw, 140px); }
+
+/* Bubbles stay white with black ink in both themes, like a printed comic. */
+[data-vibe="comic"] .msg .bubble { max-width: 80%; padding: 12px 18px; border: 3px solid #111; border-radius: 26px; background: #FFFFFF; color: #111; box-shadow: 5px 5px 0 #111; line-height: 1.45; }
+[data-vibe="comic"] .msg.user .bubble { background: #7FE3FF; }
+[data-vibe="comic"] .msg .bubble::after { content: ""; position: absolute; bottom: -11px; width: 16px; height: 16px; background: inherit; border: solid #111; border-width: 0 3px 3px 0; }
+[data-vibe="comic"] .msg.user .bubble::after { right: 26px; transform: rotate(45deg) skew(12deg, 12deg); }
+[data-vibe="comic"] .msg.assistant .bubble::after { left: 26px; transform: rotate(45deg) skew(-12deg, -12deg); }
+[data-vibe="comic"] .msg.user.enter .bubble { animation: comic-in-right .55s cubic-bezier(.34, 1.6, .64, 1) var(--d, 0ms) both; }
+[data-vibe="comic"] .msg.assistant.enter .bubble { animation: comic-in-left .55s cubic-bezier(.34, 1.6, .64, 1) var(--d, 0ms) both; }
+/* the POP! starburst behind a message you just sent */
+[data-vibe="comic"] .msg.user.enter .bubble::before { content: "POP!"; position: absolute; left: -36px; top: -30px; z-index: -1; display: grid; place-items: center; width: 70px; height: 70px; background: #FFE14D; color: #E63B2E; font-family: var(--font-display); font-size: 20px; clip-path: polygon(50% 0, 61% 30%, 95% 20%, 72% 47%, 100% 70%, 64% 70%, 58% 100%, 44% 74%, 10% 92%, 27% 62%, 0 40%, 34% 36%); animation: comic-burst .9s ease-out var(--d, 0ms) both; }
+[data-vibe="comic"] .w { display: inline-block; animation: comic-word .38s cubic-bezier(.34, 1.8, .64, 1) both; }
+/* while waiting for the first word: a thought bubble */
+[data-vibe="comic"] .msg.waiting .bubble { border-radius: 50%; padding: 8px 22px; }
+[data-vibe="comic"] .msg.waiting .text::before { content: "• • •"; font-family: var(--font-display); letter-spacing: .2em; font-size: 22px; }
+
+/* The composer is a white panel with black ink, so its controls use dark colours in both themes. */
+[data-vibe="comic"] .composer { --text: #111; --muted: #4A4030; --surface: #FFFFFF; --raised: #FFF1B8; --line: #111; color: #111; border: 3px solid #111; background: #FFFFFF; box-shadow: 5px 5px 0 #111; }
+[data-vibe="comic"] #send { background: var(--accent); color: #FFFFFF; border: 2px solid #111; }
+[data-vibe="comic"] .vibe-arrow { opacity: 1; background: #FFE14D; color: #111; border: 3px solid #111; box-shadow: 4px 4px 0 #111; }
+[data-vibe="comic"] .chat-error { border: 3px solid #111; box-shadow: 4px 4px 0 #111; }
+
+@keyframes comic-in-right { from { opacity: 0; transform: translateX(35%) rotate(10deg) scale(.3); } to { opacity: 1; transform: none; } }
+@keyframes comic-in-left { from { opacity: 0; transform: translateX(-35%) rotate(-10deg) scale(.3); } to { opacity: 1; transform: none; } }
+@keyframes comic-burst { 0% { opacity: 0; transform: scale(0) rotate(-20deg); } 25% { opacity: 1; transform: scale(1.15); } 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3) rotate(8deg); } }
+@keyframes comic-word { from { opacity: 0; transform: translateY(6px) scale(.4); } to { opacity: 1; transform: none; } }

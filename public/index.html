@@ -6,8 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>byo sub</title>
   <link rel="stylesheet" href="/styles.css">
+  <!-- Chat styles ("vibes"). Add your own here and in vibes.js. -->
+  <link rel="stylesheet" href="/vibes/classic.css">
+  <link rel="stylesheet" href="/vibes/receipt.css">
+  <link rel="stylesheet" href="/vibes/terminal.css">
+  <link rel="stylesheet" href="/vibes/comic.css">
+  <link rel="stylesheet" href="/vibes/painted.css">
 </head>
 <body>
+  <!-- The Painted vibe's watercolour landscape, and the filter that makes its hand-drawn lines wobble. -->
+  <canvas id="scene" class="scene" aria-hidden="true"></canvas>
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <filter id="wobble"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter>
+  </svg>
+  <div id="vibe-name" class="vibe-name" aria-hidden="true"></div>
+
   <!-- The boot sequence. effects.js types into it, then removes it. -->
   <div id="boot" class="boot" hidden>
     <div class="boot-log"></div>
@@ -90,6 +103,13 @@
 
     <!-- Screen 2: chat. Until you send something, the greeting and composer sit in the middle. -->
     <section id="chat" class="screen chat empty" hidden>
+      <div id="vibe-dots" class="vibe-dots" aria-hidden="true"></div>
+      <button type="button" class="vibe-arrow prev" id="vibe-prev" aria-label="Previous style">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+      </button>
+      <button type="button" class="vibe-arrow next" id="vibe-next" aria-label="Next style">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+      </button>
       <h2 class="greeting">What should we spend your plan on?</h2>
       <ol id="messages" class="messages" aria-live="polite"></ol>
       <div class="dock">

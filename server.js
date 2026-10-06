@@ -6,6 +6,8 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { extname, join, normalize, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { APP_NAME, startSignIn, finishSignIn, signOut } from './src/auth.js';
 import { loadAccount, saveAccount, hasPlanUsage, SignedOutError } from './src/tokens.js';
 import { listModels, streamReply } from './src/chat.js';
@@ -13,14 +15,27 @@ import { listModels, streamReply } from './src/chat.js';
 const PREFERRED_PORT = 1455;
 let port = PREFERRED_PORT;
 
-const PUBLIC_FILES = {
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
-  '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
-  '/effects.js': ['effects.js', 'text/javascript; charset=utf-8'],
-  '/chatgpt-mark.svg': ['chatgpt-mark.svg', 'image/svg+xml'],
-  '/chatgpt-mark-white.svg': ['chatgpt-mark-white.svg', 'image/svg+xml'],
+// Files in public/ are served as-is. Only these types, and nothing outside that folder.
+const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
 };
+
+async function servePublic(res, pathname) {
+  const file = normalize(join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname));
+  const type = TYPES[extname(file)];
+  if (!type || !file.startsWith(PUBLIC_DIR) || file.includes(`${sep}.`)) return false;
+  try {
+    send(res, 200, await readFile(file), type);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const SECURITY_HEADERS = {
   'content-security-policy': "default-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -53,9 +68,8 @@ async function handle(req, res) {
 
   const route = `${req.method} ${url.pathname}`;
 
-  if (req.method === 'GET' && PUBLIC_FILES[url.pathname]) {
-    const [file, type] = PUBLIC_FILES[url.pathname];
-    return send(res, 200, await readFile(new URL(`./public/${file}`, import.meta.url)), type);
+  if (req.method === 'GET' && !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/auth/')) {
+    if (await servePublic(res, decodeURIComponent(url.pathname))) return;
   }
 
   if (route === 'GET /auth/start') {

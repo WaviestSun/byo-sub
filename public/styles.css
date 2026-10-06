@@ -1,6 +1,6 @@
 /* styles.css: the look of byo sub. Day (default) and night themes, the wallet,
-   the plan coin, and every animation. Change the colours in the two blocks below
-   to make it yours. */
+   the plan coin, and the chat. Change the colours in the two blocks below to make
+   it yours. The other chat styles ("vibes") live in public/vibes/, one file each. */
 
 /* ---------- Colours ---------- */
 :root, [data-theme="night"] {
@@ -13,6 +13,7 @@
   --leather: #241E17; --pocket: #2E261D; --stitch: #5A4A36; --pocket-text: #C2B297;
   --shadow: none; --scrim: rgba(0, 0, 0, .55);
   --pop: 0 16px 48px rgba(0, 0, 0, .5); --focus-line: #3E473C;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --font-display: var(--font); --msg-size: 16px;
   color-scheme: dark;
 }
 [data-theme="day"] {
@@ -34,7 +35,7 @@ html, body { height: 100%; }
 body {
   margin: 0; display: flex; flex-direction: column; height: 100dvh;
   background: var(--bg); color: var(--text);
-  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 16px/1.5 var(--font);
   transition: background-color .4s, color .4s;
 }
 [hidden] { display: none !important; }
@@ -46,7 +47,7 @@ a:hover { text-decoration: underline; }
 .host { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
 .top { width: 100%; max-width: 760px; margin: 0 auto; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; letter-spacing: -.03em; }
+.logo { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 18px; font-weight: 800; letter-spacing: -.03em; }
 .logo-mark { position: relative; width: 30px; height: 24px; }
 .logo-mark i { position: absolute; left: 6px; top: 0; width: 18px; height: 12px; border-radius: 3px; background: var(--card); opacity: 0; transform: translateY(-6px); transition: .4s; }
 .logo-mark b { position: absolute; left: 0; right: 0; bottom: 0; height: 15px; border-radius: 3px 3px 6px 6px; background: var(--pocket); box-shadow: inset 0 0 0 1px var(--stitch); }
@@ -196,22 +197,40 @@ main { flex: 1; min-height: 0; display: flex; justify-content: center; }
 .plan-pill b { font-weight: 600; }
 
 /* ---------- Chat screen ---------- */
-.chat { display: flex; flex-direction: column; min-height: 0; }
-.greeting { display: none; margin: 0 0 28px; font-size: clamp(26px, 5vw, 34px); font-weight: 650; letter-spacing: -.02em; text-align: center; text-wrap: balance; }
+.chat { position: relative; display: flex; flex-direction: column; min-height: 0; }
+.greeting { display: none; margin: 0 0 28px; font-family: var(--font-display); font-size: clamp(26px, 5vw, 34px); font-weight: 650; letter-spacing: -.02em; text-align: center; text-wrap: balance; }
 /* Empty chat: greeting and composer float in the middle (auto margins, so short windows scroll instead of clipping). */
 .chat.empty { overflow-y: auto; }
 .chat.empty .greeting { display: block; margin-top: auto; }
 .chat.empty .dock { margin-bottom: auto; padding-bottom: 12vh; }
 .chat.empty .messages { display: none; }
 .messages { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 32px 8px 24px; display: flex; flex-direction: column; gap: 32px; }
-.msg { font-size: 16px; line-height: 1.7; overflow-wrap: anywhere; }
-.msg.user { position: relative; align-self: flex-end; max-width: 75%; padding: 10px 18px; border-radius: 22px; background: var(--raised); white-space: pre-wrap; }
-.msg.user.fresh { animation: land .6s cubic-bezier(.2, .8, .2, 1), glow 1.2s ease-out; }
-.particle { position: absolute; left: 4px; bottom: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; animation: float .7s ease-out var(--delay) both; }
-.particle:nth-child(even) { background: var(--gold); width: 4px; height: 4px; }
-.msg.assistant { display: flex; flex-direction: column; gap: 12px; }
+.msg { display: flex; flex-direction: column; gap: 12px; font-size: var(--msg-size); line-height: 1.7; overflow-wrap: anywhere; }
+.msg.user { align-items: flex-end; }
+.msg.assistant { align-items: flex-start; }
+.bubble { position: relative; isolation: isolate; max-width: 100%; }
+.msg.user .bubble { max-width: 75%; padding: 10px 18px; border-radius: 22px; background: var(--raised); }
 .text { white-space: pre-wrap; }
 .cursor { width: .5em; height: 1.05em; margin-left: 2px; vertical-align: -.18em; }
+canvas.paint { display: none; position: absolute; z-index: -1; pointer-events: none; } /* used by the Painted vibe */
+
+/* ---------- Vibe switcher: arrows that peek out at the column edges, dots, and the name flash ---------- */
+.vibe-arrow { position: absolute; top: 42%; z-index: 5; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--text); box-shadow: var(--shadow); opacity: .6; transition: transform .3s cubic-bezier(.34, 1.45, .64, 1), opacity .3s; }
+.vibe-arrow.prev { left: -14px; transform: translateX(-40%); animation: nudge-left 7s ease-in-out infinite; }
+.vibe-arrow.next { right: -14px; transform: translateX(40%); animation: nudge-right 7s ease-in-out 3.5s infinite; }
+.chat:hover .vibe-arrow, .vibe-arrow:focus-visible { opacity: 1; transform: none; animation: none; }
+.vibe-arrow:active { transform: scale(.9); }
+[data-vibes-used] .vibe-arrow { animation: none; }
+@keyframes nudge-left { 0%, 88%, 100% { transform: translateX(-40%); } 93% { transform: translateX(12%); } }
+@keyframes nudge-right { 0%, 88%, 100% { transform: translateX(40%); } 93% { transform: translateX(-12%); } }
+.vibe-dots { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 6px; }
+.vibe-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background-color .3s, transform .3s; }
+.vibe-dots i.on { background: var(--accent-ink); transform: scale(1.3); }
+.vibe-name { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; pointer-events: none; font-family: var(--font-display); font-size: clamp(48px, 12vw, 96px); font-weight: 800; color: var(--text); opacity: 0; }
+.vibe-name.show { animation: vibe-name 1.3s ease-out both; }
+@keyframes vibe-name { 0% { opacity: 0; transform: scale(.85); } 20% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1.04); } }
+.scene { display: none; position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.svg-defs { position: absolute; width: 0; height: 0; }
 
 .chat-error { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); line-height: 1.5; }
 .chat-error .brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -241,9 +260,6 @@ main { flex: 1; min-height: 0; display: flex; justify-content: center; }
 .caption a { color: inherit; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
 .caption a:hover { color: var(--text); }
 
-@keyframes land { from { opacity: 0; transform: translateY(28px) scale(.96); } to { opacity: 1; transform: none; } }
-@keyframes glow { from { box-shadow: 0 0 0 1px var(--accent), 0 0 36px var(--glow); } to { box-shadow: 0 0 0 1px transparent, 0 0 0 transparent; } }
-@keyframes float { from { opacity: .9; transform: translate(0, 0) scale(1); } to { opacity: 0; transform: translate(var(--x), var(--y)) scale(.3); } }
 
 /* ---------- Welcome card (shown once) ---------- */
 .sheet { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; padding: 20px; background: var(--scrim); animation: fade .3s both; }
