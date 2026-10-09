@@ -22,7 +22,7 @@ npm start
 
 It opens in your browser by itself (usually at **http://127.0.0.1:1455**; the address is printed too). Click **Continue with ChatGPT**, approve on chatgpt.com, tap the coin, and start chatting. To skip opening the browser, start it with `BYO_SUB_NO_OPEN=1 npm start`.
 
-### Not a coder? Let Claude set it up
+### Not a coder? Let Claude code or Codex set it up
 
 Open [Claude Code](https://claude.com/claude-code) (in your terminal or the Claude desktop app), paste this in, and follow along:
 
