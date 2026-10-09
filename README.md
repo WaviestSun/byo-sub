@@ -24,7 +24,7 @@ It opens in your browser by itself (usually at **http://127.0.0.1:1455**; the ad
 
 ### Not a coder? Let Claude code or Codex set it up
 
-Open [Claude Code](https://claude.com/claude-code) (in your terminal or the Claude desktop app), paste this in, and follow along:
+Open [Claude Code](https://claude.com/claude-code) or [Codex](https://chatgpt.com/codex/) (in your terminal or the Claude desktop app), paste this in, and follow along:
 
 ```text
 Please set up and start the "byo sub" app for me. I'm not a developer, so explain anything I need to do in simple steps.
